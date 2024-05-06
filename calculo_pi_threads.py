@@ -6,20 +6,17 @@ import concurrent.futures
 import random
 import time 
 
-
-class ValueProcess(multiprocessing.Process):  # CLASSE QUE HERDA DE multiprocessing.Processing
+class ValueProcess(multiprocessing.Process):  
     def __init__(self, num_points, points_inside_circle, result_queue):
         super().__init__()
         self.num_points = num_points
-        self.points_inside_circle = points_inside_circle  # Pontos dentro do círculo
-        self.result_queue = result_queue  # Fila de resultados
+        self.points_inside_circle = points_inside_circle  
+        self.result_queue = result_queue  
 
-    # FUNÇÃO EXECUTAR
     def run(self):
         points_inside_circle = monte_carlo_pi_part(self.num_points, self.points_inside_circle)
         self.result_queue.put(points_inside_circle)
 
-# FUNÇÃO AUXILIAR PARA CALCULAR PONTOS DENTRO DO CÍRCULO
 def monte_carlo_pi_part_wrapper(num_points):
     points_inside = 0
     for _ in range(num_points):
@@ -30,7 +27,6 @@ def monte_carlo_pi_part_wrapper(num_points):
             points_inside += 1
     return points_inside
 
-#FUNÇÃO PARA CALCULAR PONTOS DENTRO DO CÍRCULO
 def monte_carlo_pi_part(num_points, points_inside_circle):
     points_inside = 0
     for _ in range(num_points):
@@ -39,11 +35,10 @@ def monte_carlo_pi_part(num_points, points_inside_circle):
         distance_to_origin = (x ** 2 + y ** 2) ** 0.5
         if distance_to_origin <= 1:
             points_inside += 1
-    with points_inside_circle.get_lock():  # Garante exclusão mútua ao atualizar a variável compartilhada
+    with points_inside_circle.get_lock():
         points_inside_circle.value += points_inside
     return points_inside
 
-# CALCULA O PI USANDO concurrent.futures
 def monte_carlo_pi_concurrent(num_points, num_workers):  
     start_time = time.time()
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
@@ -53,7 +48,6 @@ def monte_carlo_pi_concurrent(num_points, num_workers):
     end_time = time.time()
     return pi_approximation, end_time - start_time
 
-# CALCULA O PI USANDO THREADS
 def monte_carlo_pi_threads(num_points, num_threads):  
     start_time = time.time()
     points_inside_circle = multiprocessing.Value('i', 0)
@@ -71,7 +65,6 @@ def monte_carlo_pi_threads(num_points, num_threads):
     end_time = time.time()
     return pi_approximation, end_time - start_time
 
-# FUNÇÃO PARA CALCULAR PONTOS DENTRO DO CÍRCULO COM SEMÁFORO
 def monte_carlo_pi_part_with_semaphore(num_points, points_inside_circle, semaphore):  
     semaphore.acquire()
     try:
@@ -87,7 +80,6 @@ def monte_carlo_pi_part_with_semaphore(num_points, points_inside_circle, semapho
     finally:
         semaphore.release()
 
-#CALCULA PI USANDO multiprocessing
 def monte_carlo_pi_multiprocessing(num_points, num_processes):
     start_time = time.time()
     points_inside_circle = multiprocessing.Value('i', 0)
@@ -104,7 +96,6 @@ def monte_carlo_pi_multiprocessing(num_points, num_processes):
     end_time = time.time()
     return pi_approximation, end_time - start_time
 
-# CALCULA PI USANDO THREADS E SEMÁFOROS
 def monte_carlo_pi_threads_with_semaphore(num_points, num_threads):  
     start_time = time.time()
     points_inside_circle = multiprocessing.Value('i', 0)
@@ -122,7 +113,6 @@ def monte_carlo_pi_threads_with_semaphore(num_points, num_threads):
     end_time = time.time()
     return pi_approximation, end_time - start_time
 
-# SELECIONA A FUNÇÃO DE CÁLCULO DE PI COM BASE NO MÉTODO ESCOLHIDO
 def calculate_pi(method, num_points, num_workers):
     if method == "Threads":
         return monte_carlo_pi_threads(num_points, num_workers)
@@ -133,43 +123,49 @@ def calculate_pi(method, num_points, num_workers):
     elif method == "Threads com Semáforo":
         return monte_carlo_pi_threads_with_semaphore(num_points, num_workers)
 
- # FUNÇÃO CHAMADA QUANDO O BOTÃO É CLICADO
 def on_button_click(method, num_workers_entry): 
     try:
-        num_workers = int(num_workers_entry.get())  # Obtém o número de workers inserido pelo usuário
+        num_workers = int(num_workers_entry.get())
         pi_value, process_time = calculate_pi(method, 1000000, num_workers)
-        messagebox.showinfo("Resultado", f"Valor aproximado de Pi ({method}): {pi_value}\nTempo de processamento: {process_time} segundos")  # Exibe o resultado
+        messagebox.showinfo("Resultado", f"Valor aproximado de Pi ({method}): {pi_value}\nTempo de processamento: {process_time} segundos")
     except ValueError:
-        messagebox.showerror("Erro", "Insira um número válido de workers.")  # Exibe uma mensagem de erro se o usuário inserir um valor inválido
+        messagebox.showerror("Erro", "Insira um número válido de workers.")
     except Exception as e:
-        messagebox.showerror("Erro", f"Ocorreu um erro: {str(e)}")  # Exibe uma mensagem de erro se ocorrer uma exceção
+        messagebox.showerror("Erro", f"Ocorreu um erro: {str(e)}")
 
 
 def create_gui(): 
+    def back_to_menu():  # Função para voltar ao menu principal
+        root.destroy()  # Fecha a janela atual
+        create_gui()    # Chama a função create_gui() novamente para voltar ao menu principal
+
     root = tk.Tk() 
     root.title("Cálculo de Pi") 
     root.geometry("600x250") 
 
-    # FUNÇÃO CHAMADA QUANDO UM MÉTODO É SELECIONADO
+    method_frame = tk.Frame(root)  
+    method_frame.pack(pady=20)
+
+    for method in ["Threads", "Multiprocessamento", "Concurrent.Futures", "Threads com Semáforo"]:  
+        method_button = tk.Button(method_frame, text=method, command=lambda m=method: on_method_selected(m))  
+        method_button.pack(side=tk.LEFT, padx=10)
+    
+    back_button = tk.Button(root, text="Voltar ao Menu", command=back_to_menu)  # Botão para voltar ao menu
+    back_button.pack(side=tk.BOTTOM, pady=10)
+
     def on_method_selected(method):  
         method_frame.destroy()
-        num_workers_label = tk.Label(root, text=f"Insira o número de {method.lower()}:")  # Usuário insere o número de workers
+        num_workers_label = tk.Label(root, text=f"Insira o número de {method.lower()}:")  
         num_workers_label.pack()
         num_workers_entry = tk.Entry(root)
         num_workers_entry.pack()
 
-        def on_confirm():  # Função chamada quando o botão "Confirmar" é clicado
+        def on_confirm():  
             on_button_click(method, num_workers_entry)
 
-        confirm_button = tk.Button(root, text="Confirmar", command=on_confirm)  # BOTÃO CONFIRMAR
+        confirm_button = tk.Button(root, text="Confirmar", command=on_confirm)  
         confirm_button.pack()
 
-    method_frame = tk.Frame(root)  # Cria um frame para os botões dos métodos
-    method_frame.pack(pady=20)
-
-    for method in ["Threads", "Multiprocessamento", "Concurrent.Futures", "Threads com Semáforo"]:  # Itera sobre os métodos disponíveis
-        method_button = tk.Button(method_frame, text=method, command=lambda m=method: on_method_selected(m))  # Cria um botão para cada método que chama a função on_method_selected quando clicado
-        method_button.pack(side=tk.LEFT, padx=10)
     root.mainloop()
 
 
